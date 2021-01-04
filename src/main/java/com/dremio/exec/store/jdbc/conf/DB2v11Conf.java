@@ -23,11 +23,11 @@ import com.dremio.exec.catalog.conf.DisplayMetadata;
 import com.dremio.exec.catalog.conf.NotMetadataImpacting;
 import com.dremio.exec.catalog.conf.Secret;
 import com.dremio.exec.catalog.conf.SourceType;
-import com.dremio.exec.server.SabotContext;
+import com.dremio.options.OptionManager;
+import com.dremio.security.CredentialsService;
 import com.dremio.exec.store.jdbc.CloseableDataSource;
 import com.dremio.exec.store.jdbc.DataSources;
-import com.dremio.exec.store.jdbc.JdbcStoragePlugin;
-import com.dremio.exec.store.jdbc.JdbcStoragePlugin.Config;
+import com.dremio.exec.store.jdbc.JdbcPluginConfig;
 import com.dremio.exec.store.jdbc.dialect.arp.ArpDialect;
 import com.dremio.exec.store.jdbc.dialect.DB2Dialect;
 import com.google.common.annotations.VisibleForTesting;
@@ -48,22 +48,22 @@ public class DB2v11Conf extends AbstractArpConf<DB2v11Conf> {
   @Tag(1)
   @DisplayMetadata(label = "Database Server")
   public String host;
-  
+
   @NotBlank
   @Tag(2)
   @DisplayMetadata(label = "Database Port")
   public String port;
-  
+
   @NotBlank
   @Tag(3)
   @DisplayMetadata(label = "Database")
   public String database;
-  
+
   @NotBlank
   @Tag(4)
   @DisplayMetadata(label = "Username")
   public String username;
-  
+
   @NotBlank
   @Tag(5)
   @Secret
@@ -83,9 +83,8 @@ public class DB2v11Conf extends AbstractArpConf<DB2v11Conf> {
 
   @Override
   @VisibleForTesting
-  public Config toPluginConfig(SabotContext context) {
-    return JdbcStoragePlugin.Config.newBuilder()
-        .withDialect(getDialect())
+  public JdbcPluginConfig buildPluginConfig(JdbcPluginConfig.Builder configBuilder, CredentialsService credentialsService, OptionManager optionManager) {
+         return configBuilder.withDialect(getDialect())
         .withDatasourceFactory(this::newDataSource)
         .clearHiddenSchemas()
         //.addHiddenSchema("SYSTEM")
