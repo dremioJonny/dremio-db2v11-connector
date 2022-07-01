@@ -31,13 +31,14 @@ import com.dremio.exec.store.jdbc.JdbcPluginConfig;
 import com.dremio.exec.store.jdbc.dialect.arp.ArpDialect;
 import com.dremio.exec.store.jdbc.dialect.DB2Dialect;
 import com.google.common.annotations.VisibleForTesting;
+ import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import io.protostuff.Tag;
 
 /**
  * Configuration for TIBCODataVirtualization sources.
  */
-@SourceType(value = "IBMDB2V11ARP", label = "IBM DB2 v11")
+@SourceType(value = "IBMDB2V11ARP", label = "IBM DB2 v11", uiConfig = "IBMDB2V11ARP-layout.json", externalQuerySupported = true)
 public class DB2v11Conf extends AbstractArpConf<DB2v11Conf> {
   private static final String ARP_FILENAME = "arp/implementation/db2v11-arp.yaml";
   private static final ArpDialect ARP_DIALECT =
@@ -70,6 +71,27 @@ public class DB2v11Conf extends AbstractArpConf<DB2v11Conf> {
   @DisplayMetadata(label = "Password")
   public String password;
 
+  @Tag(6)
+  @DisplayMetadata(label = "Record fetch size")
+  @NotMetadataImpacting
+  public int fetchSize = 500;
+
+  @Tag(7)
+  @NotMetadataImpacting
+  @JsonIgnore
+  @DisplayMetadata(label = "Grant External Query access (External Query allows creation of VDS from a DB2 query. Learn more here: https://docs.dremio.com/data-sources/external-queries.html#enabling-external-queries)")
+  public boolean enableExternalQuery = false;
+
+  @Tag(8)
+  @DisplayMetadata(label = "Maximum idle connections")
+  @NotMetadataImpacting
+  public int maxIdleConns = 8;
+
+  @Tag(9)
+  @DisplayMetadata(label = "Connection idle time (s)")
+  @NotMetadataImpacting
+  public int idleTimeSec = 60;
+
 
   @VisibleForTesting
   public String toJdbcConnectionString() {
@@ -86,15 +108,23 @@ public class DB2v11Conf extends AbstractArpConf<DB2v11Conf> {
   public JdbcPluginConfig buildPluginConfig(JdbcPluginConfig.Builder configBuilder, CredentialsService credentialsService, OptionManager optionManager) {
          return configBuilder.withDialect(getDialect())
         .withDatasourceFactory(this::newDataSource)
-        .clearHiddenSchemas()
-        //.addHiddenSchema("SYSTEM")
+        .withShowOnlyConnDatabase(false)
+        .withFetchSize(fetchSize)
+        .withAllowExternalQuery(enableExternalQuery)
         .build();
   }
 
   private CloseableDataSource newDataSource() {
-    return DataSources.newGenericConnectionPoolDataSource(DRIVER,
-      toJdbcConnectionString(), username, password, null, DataSources.CommitMode.DRIVER_SPECIFIED_COMMIT_MODE);
-  }
+    return DataSources.newGenericConnectionPoolDataSource(
+      DRIVER,
+      toJdbcConnectionString(),
+      username,
+      password,
+      null,
+      DataSources.CommitMode.DRIVER_SPECIFIED_COMMIT_MODE,
+      maxIdleConns,
+      idleTimeSec);
+    }
 
   @Override
   public ArpDialect getDialect() {
